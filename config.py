@@ -79,7 +79,7 @@ YOLO_PARAMS = {
 
 # PRESET 1: High Accuracy (Slower, 70%+ confidence)
 PRESET_HIGH_ACCURACY = {
-    "conf": 0.5,
+    "conf": 0.7,
     "iou": 0.45,
     "max_det": 100,
 }
