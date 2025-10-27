@@ -22,8 +22,9 @@ sio = socketio.AsyncServer(
 # Create ASGI app
 app = socketio.ASGIApp(sio)
 
-# Global model variable
+# Global variables
 model = None
+client_sockets = {}  # Track client types by socket ID
 
 def load_model():
     """Load YOLOv11x model"""
@@ -48,7 +49,29 @@ def load_model():
 @sio.event
 async def connect(sid, environ):
     """Handle client connection"""
-    print(f"Client connected: {sid}")
+    global client_sockets
+    
+    user_agent = environ.get('HTTP_USER_AGENT', 'Unknown')
+    
+    # Detect client type from User-Agent or connection path
+    if 'Python' in user_agent or 'python' in user_agent.lower():
+        client_type = "PYTHON"
+    elif 'Dart' in user_agent or 'dart' in user_agent.lower() or 'Flutter' in user_agent:
+        client_type = "FLUTTER"
+    else:
+        # Check path/transport info
+        path = environ.get('PATH_INFO', '')
+        if 'flutter' in path.lower():
+            client_type = "FLUTTER"
+        else:
+            client_type = "UNKNOWN"
+    
+    # Store client type for this socket
+    client_sockets[sid] = client_type
+    
+    print(f"[{client_type}] Client connected: {sid}")
+    print(f"[{client_type}] User-Agent: {user_agent}")
+    
     await sio.emit('connection_response', {
         'status': 'connected',
         'message': 'Successfully connected to YOLOv11x server'
@@ -75,21 +98,99 @@ async def frame(sid, data):
             }, to=sid)
             return
         
-        # Decode base64 image
-        print(f"[FRAME] Received frame from {sid}")
-        image_data = base64.b64decode(data['image'])
-        nparr = np.frombuffer(image_data, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Detect client type from stored socket info
+        global client_sockets
+        base64_length = len(data['image'])
         
-        if frame is None:
-            await sio.emit('error', {
-                'message': 'Failed to decode image'
-            }, to=sid)
-            return
+        # Get client type from stored socket info (set during connect event)
+        client_type = client_sockets.get(sid, "UNKNOWN")
+        
+        # If not found, try to identify from base64 size as fallback
+        if client_type == "UNKNOWN":
+            if base64_length < 15000:
+                client_type = "PYTHON"
+            else:
+                client_type = "FLUTTER"
+            client_sockets[sid] = client_type
+            print(f"[CLIENT IDENTIFICATION] ✨ Fallback detection: {sid[:15]}... → {client_type}")
+        
+        import time
+        timestamp = time.strftime('%H:%M:%S')
+        
+        print(f"\n{'='*70}")
+        print(f"[{client_type} REQUEST] Socket ID: {sid}")
+        print(f"[{client_type} REQUEST] Timestamp: {timestamp}")
+        print(f"[{client_type} REQUEST] Base64 length: {base64_length} chars")
+        print(f"{'='*70}")
+        
+        # Decode base64 image
+        image_data = base64.b64decode(data['image'])
+        print(f"[{sid[:10]}] [{client_type}] 📥 Received frame")
+        print(f"[{sid[:10]}] [{client_type}] Base64: {len(data['image'])} chars → Decoded: {len(image_data)} bytes")
+        print(f"[{sid[:10]}] [{client_type}] Preview: {data['image'][:50]}...")
+        
+        # 🔹 Detect format: YUV420 (raw) or JPEG  
+        # Note: YUV420 raw is 3x larger than JPEG - not recommended for production
+        # Keeping support for both formats for flexibility
+        format_type = data.get('format', 'jpeg')  # Default to JPEG (recommended)
+        
+        if format_type == 'yuv420':
+            # YUV420 raw format received
+            print(f"[{client_type} FRAME] Format: YUV420 (raw)")
+            width = data.get('width')
+            height = data.get('height')
+            
+            if width is None or height is None:
+                print(f"[FRAME] ERROR: YUV420 requires width and height parameters")
+                await sio.emit('error', {
+                    'message': 'YUV420 format requires width and height parameters'
+                }, to=sid)
+                return
+            
+            # Decode YUV420 to BGR
+            yuv_frame = image_data
+            frame = cv2.cvtColor(yuv_frame.reshape((height, width)), cv2.COLOR_YUV420p2BGR)
+            # Reshape if needed for YUV420 planes
+            
+            print(f"[{client_type} FRAME] ✓ Decoded YUV420 to BGR")
+        else:
+            # JPEG format (default)
+            print(f"[{client_type} FRAME] Format: JPEG")
+            nparr = np.frombuffer(image_data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if frame is None:
+                print(f"[FRAME] ERROR: Failed to decode image!")
+                print(f"[FRAME] First 50 bytes: {image_data[:50]}")
+                print(f"[FRAME] Is JPEG header? {image_data[:3] == b'\\xff\\xd8\\xff'}")
+                await sio.emit('error', {
+                    'message': 'Failed to decode image'
+                }, to=sid)
+                return
+            
+            # 🔹 BACKEND CONVERSION OPTION (Python-powered!)
+            # Both clients send BGR, but if needed we can force conversion
+            # For debugging: check if colors look wrong and manually convert
+            needs_conversion = data.get('force_rgb', False)  # Optional flag from client
+            
+            if needs_conversion and client_type == "FLUTTER":
+                # Force Python conversion: RGB→BGR
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                print(f"[{client_type} FRAME] 🔄 Python converted RGB→BGR")
+            else:
+                # Both clients now send BGR directly
+                print(f"[{client_type} FRAME] ✓ Already in BGR format (ready for YOLO)")
         
         # Run YOLO inference with configured parameters
-        print(f"[INFERENCE] Running YOLO on frame shape: {frame.shape}")
+        print(f"\n[{sid[:10]}] [{client_type}] 📊 Frame processed:")
+        print(f"[{sid[:10]}]    Shape: {frame.shape}")
+        print(f"[{sid[:10]}]    Dtype: {frame.dtype}")
+        print(f"[{sid[:10]}]    Pixel range: min={frame.min()}, max={frame.max()}")
+        print(f"[{sid[:10]}]    Mean brightness: {frame.mean():.1f}")
+        
+        print(f"\n[{sid[:10]}] [{client_type}] 🔍 Running YOLO inference...")
         results = model(frame, **config.YOLO_PARAMS)
+        print(f"[{sid[:10]}] [{client_type}] ✅ Inference completed")
         
         # Extract detections (already filtered by confidence threshold)
         detections = []
@@ -104,15 +205,26 @@ async def frame(sid, data):
                 }
                 detections.append(detection)
         
-        print(f"Detections:{detections}")        
-        print(f"[DETECTIONS] Found {len(detections)} objects (conf > {config.YOLO_PARAMS['conf']:.0%})")
+        print(f"\n[{sid[:10]}] [{client_type}] 🎯 Detection Results:")
+        print(f"[{sid[:10]}]    Found: {len(detections)} objects")
+        
+        if detections:
+            print(f"[{sid[:10]}]    Classes: {[d['class_name'] for d in detections]}")
+            for i, det in enumerate(detections[:3], 1):  # Show first 3
+                print(f"[{sid[:10]}]      {i}. {det['class_name']}: {det['confidence']:.1%} at {det['bbox']}")
+        else:
+            print(f"[{sid[:10]}]    ❌ NO OBJECTS DETECTED!")
+        
+        print(f"[{sid[:10]}] [{client_type}] 📤 Sending response to client...")
         
         # Send detections back to client
         await sio.emit('detections', {
             'detections': detections,
             'count': len(detections)
         }, to=sid)
-        print(f"[SENT] Detections sent to {sid}")
+        
+        print(f"[{sid[:10]}] [{client_type}] ✅ Response sent successfully")
+        print(f"{'='*70}\n")
         
     except Exception as e:
         print(f"Error processing frame: {e}")

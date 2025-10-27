@@ -5,7 +5,7 @@
 ### ❌ Problem 1: Status Always "Processing"
 **Cause:** Socket.IO event name mismatch
 - Server emits: `'detections'`
-- Client was listening for: `'detections_event'`
+- Client was listening for: `'detections_event'`F
 
 **Fix:** ✅ Renamed client function from `detections_event()` to `detections()` to match the server event name.
 

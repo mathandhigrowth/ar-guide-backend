@@ -1,30 +1,22 @@
 # Model Directory
 
-Place your trained YOLOv11x model weights here.
+This directory contains the trained YOLOv11n model weights.
 
-## Required File
-- `best.pt` - Your trained YOLOv11x model weights
+## Setup Instructions
 
-## Model Information
-The server expects a YOLOv11x model file named `best.pt` in this directory.
+1. Download your trained YOLOv11n model weights (best.pt file)
+2. Place the `best.pt` file in this directory
+3. The server will automatically load the model from `model/best.pt`
 
-### How to add your model:
-1. Copy your trained model file to this directory
-2. Rename it to `best.pt` or update the path in `server.py`
-3. Restart the server
+## Model Requirements
 
-### Model Format
-- Supported: PyTorch (.pt) format
-- Recommended: YOLOv11x trained weights
-
-### Example:
-```bash
-# Copy your model to this directory
-cp /path/to/your/model.pt model/best.pt
-```
+- Format: PyTorch (.pt) file
+- Architecture: YOLOv11n (nano version for faster inference)
+- Input size: 640x640 pixels (default)
+- Classes: Depends on your training dataset
 
 ## Notes
-- Model files are ignored by git (too large)
-- For deployment, ensure the model is included in your Docker image or mounted as a volume
-- The model should be compatible with the installed ultralytics version
 
+- The model will be loaded automatically when the server starts
+- Make sure the model file is named `best.pt` exactly
+- For GPU acceleration, ensure CUDA is available and PyTorch is installed with CUDA support

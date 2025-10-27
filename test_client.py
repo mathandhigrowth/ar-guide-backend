@@ -72,8 +72,12 @@ def error(data):
 
 def encode_frame(frame, quality=50):
     """Encode frame to base64 JPEG"""
+  
     _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    return base64.b64encode(buffer).decode('utf-8')
+    base64_string = base64.b64encode(buffer).decode('utf-8')
+    
+  
+    return base64_string
 
 def draw_detections(frame, detections):
     """Draw bounding boxes and labels on frame"""

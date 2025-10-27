@@ -10,7 +10,7 @@ Adjust these settings to optimize detection accuracy and performance
 # Minimum confidence threshold (0.0 - 1.0)
 # Higher = More accurate but fewer detections
 # Lower = More detections but less accurate
-CONFIDENCE_THRESHOLD = 0.7  # 70% confidence minimum
+CONFIDENCE_THRESHOLD = 0.01  # 1% confidence minimum (extremely low for testing)
 
 # IoU threshold for Non-Maximum Suppression (0.0 - 1.0)
 # Higher = More overlapping boxes allowed
@@ -45,7 +45,7 @@ CORS_ORIGINS = "*"  # Change to specific domains in production
 # ============================================================
 
 # Path to model weights
-MODEL_PATH = "model/best.pt"
+MODEL_PATH = "model/yolo11s.pt"
 
 # Enable/disable verbose inference output
 VERBOSE_INFERENCE = False
@@ -79,7 +79,7 @@ YOLO_PARAMS = {
 
 # PRESET 1: High Accuracy (Slower, 70%+ confidence)
 PRESET_HIGH_ACCURACY = {
-    "conf": 0.7,
+    "conf": 0.5,
     "iou": 0.45,
     "max_det": 100,
 }
@@ -106,7 +106,7 @@ PRESET_VERY_HIGH_ACCURACY = {
 }
 
 # Select active preset (or set to None to use YOLO_PARAMS)
-ACTIVE_PRESET = "HIGH_ACCURACY"  # Options: 'HIGH_ACCURACY', 'BALANCED', 'HIGH_RECALL', 'VERY_HIGH_ACCURACY', None
+ACTIVE_PRESET = "HIGH_RECALL"  # Options: 'HIGH_ACCURACY', 'BALANCED', 'HIGH_RECALL', 'VERY_HIGH_ACCURACY', None (using HIGH_RECALL for Flutter debugging)
 
 # Apply preset if selected
 if ACTIVE_PRESET == "HIGH_ACCURACY":
