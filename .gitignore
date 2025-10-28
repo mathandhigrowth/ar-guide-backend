@@ -11,12 +11,6 @@ build/
 dist/
 *.egg-info/
 
-# Model files (large files)
-model/*.pt
-model/*.pth
-model/*.onnx
-model/*.tflite
-
 # IDE
 .vscode/
 .idea/
