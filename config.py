@@ -45,7 +45,7 @@ CORS_ORIGINS = "*"  # Change to specific domains in production
 # ============================================================
 
 # Path to model weights
-MODEL_PATH = "model/yolo11s.pt"
+MODEL_PATH = "model/final_model.pt"
 
 # Enable/disable verbose inference output
 VERBOSE_INFERENCE = False
