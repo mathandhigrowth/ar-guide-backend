@@ -205,19 +205,27 @@ async def frame(sid, data):
                 }
                 detections.append(detection)
         
+        # 🔹 SINGLE OBJECT MODE: Select only the highest confidence detection
+        original_count = len(detections)
+        if detections:
+            # Sort by confidence (highest first) and take only the first one
+            detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
+            detections = detections[:1]  # Keep only the highest confidence detection (slice to ensure single item)
+            print(f"[{sid[:10]}] [{client_type}] 🔄 Filtered from {original_count} to {len(detections)} object(s)")
+        
         print(f"\n[{sid[:10]}] [{client_type}] 🎯 Detection Results:")
-        print(f"[{sid[:10]}]    Found: {len(detections)} objects")
+        print(f"[{sid[:10]}]    Found: {len(detections)} object(s)")
         
         if detections:
-            print(f"[{sid[:10]}]    Classes: {[d['class_name'] for d in detections]}")
-            for i, det in enumerate(detections[:3], 1):  # Show first 3
-                print(f"[{sid[:10]}]      {i}. {det['class_name']}: {det['confidence']:.1%} at {det['bbox']}")
+            det = detections[0]
+            print(f"[{sid[:10]}]    🎯 Selected: {det['class_name']} (confidence: {det['confidence']:.1%})")
+            print(f"[{sid[:10]}]    Bounding Box: {det['bbox']}")
         else:
             print(f"[{sid[:10]}]    ❌ NO OBJECTS DETECTED!")
         
         print(f"[{sid[:10]}] [{client_type}] 📤 Sending response to client...")
         
-        # Send detections back to client
+        # Send detections back to client (only one object)
         await sio.emit('detections', {
             'detections': detections,
             'count': len(detections)

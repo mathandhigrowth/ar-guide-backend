@@ -16,6 +16,10 @@ CAMERA_ID = 0  # Default webcam
 FPS_TARGET = 10  # Target frames per second to send
 FRAME_DELAY = 1.0 / FPS_TARGET
 
+# Webcam resolution settings (1:1 aspect ratio)
+FRAME_WIDTH = 800
+FRAME_HEIGHT = 800
+
 # Detection display settings
 BOX_COLOR = (0, 255, 0)  # Green
 BOX_THICKNESS = 2
@@ -133,9 +137,12 @@ def draw_info(frame, fps, detection_count, processing):
     """Draw information overlay"""
     height, width = frame.shape[:2]
     
-    # Draw semi-transparent background for info
+    # Draw semi-transparent background for info (adjusted for 500x500 frame)
     overlay = frame.copy()
-    cv2.rectangle(overlay, (10, 10), (300, 130), (0, 0, 0), -1)
+    # Smaller info box for 500x500 resolution
+    info_width = min(280, width - 20)
+    info_height = 110
+    cv2.rectangle(overlay, (10, 10), (10 + info_width, 10 + info_height), (0, 0, 0), -1)
     cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
     
     # Draw text info
@@ -178,7 +185,17 @@ def main():
         sio.disconnect()
         return
     
+    # Set webcam resolution to 500x500 (1:1 aspect ratio)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+    
+    # Get actual resolution (webcam may adjust to nearest supported resolution)
+    actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
     print(f"\n[SUCCESS] Webcam opened successfully!")
+    print(f"[INFO] Requested resolution: {FRAME_WIDTH}x{FRAME_HEIGHT} (1:1)")
+    print(f"[INFO] Actual resolution: {actual_width}x{actual_height}")
     print(f"[INFO] Target FPS: {FPS_TARGET}")
     print(f"[INFO] Server: {SERVER_URL}")
     print("\nPress 'q' to quit\n")
@@ -195,6 +212,10 @@ def main():
             if not ret:
                 print("[ERROR] Failed to read frame from webcam")
                 break
+            
+            # Resize frame to exactly 500x500 (1:1) if webcam didn't support it
+            if frame.shape[1] != FRAME_WIDTH or frame.shape[0] != FRAME_HEIGHT:
+                frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT), interpolation=cv2.INTER_LINEAR)
             
             # Calculate FPS
             frame_count += 1
@@ -219,8 +240,8 @@ def main():
             # Draw info overlay
             frame = draw_info(frame, fps, detection_count, processing)
             
-            # Display frame
-            cv2.imshow('YOLOv11x Live Detection', frame)
+            # Display frame (window will show 500x500 square)
+            cv2.imshow('YOLOv11x Live Detection (500x500)', frame)
             
             # Check for quit
             if cv2.waitKey(1) & 0xFF == ord('q'):
