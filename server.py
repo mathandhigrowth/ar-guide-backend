@@ -181,6 +181,14 @@ async def frame(sid, data):
                 # Both clients now send BGR directly
                 print(f"[{client_type} FRAME] ✓ Already in BGR format (ready for YOLO)")
         
+        # ============================================================
+        # ORIENTATION: Keep native portrait (no rotation)
+        # ============================================================
+        height, width = frame.shape[:2]
+        orientation = "portrait" if height > width else "landscape"
+        print(f"[{client_type} ORIENTATION] 📸 Input frame: {width}×{height} ({orientation})")
+        print(f"[{client_type} ORIENTATION] ✅ Using native orientation (no rotation)")
+        
         # Run YOLO inference with configured parameters
         print(f"\n[{sid[:10]}] [{client_type}] 📊 Frame processed:")
         print(f"[{sid[:10]}]    Shape: {frame.shape}")
